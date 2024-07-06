@@ -4,6 +4,7 @@ export type BiddingQuery = {
     orgao?: string;
     municipio?: string;
     estado?: string;
+    ano?: number;
     
     page: string;
     limit: string;
@@ -13,6 +14,7 @@ export type BiddingFilter = {
     "modalidadeCompra.id"?: number;
     "unidadeOrgao.codigo"?: string;
     "unidadeOrgao.orgao.codigo"?: string;
+    "anoCompra"?: number;
     "unidadeOrgao.cidade.nome"?: string | RegExp;
     "unidadeOrgao.cidade.uf.nome"?: string | RegExp;
 };
@@ -23,6 +25,10 @@ export function BuildBiddingFilter(query: BiddingQuery): BiddingFilter {
 
     if (query.modalidade) {
         filter["modalidadeCompra.id"] = Number(query.modalidade)
+    };
+
+    if (query.modalidade) {
+        filter["anoCompra"] = Number(query.ano)
     };
     
     if (query.estado) {
