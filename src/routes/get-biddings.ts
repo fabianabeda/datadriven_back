@@ -10,7 +10,7 @@ export async function GetBiddings(app: FastifyInstance) {
 
         const biddingCollection = db.collection("licitacao");
 
-        const { page, limit, skip } = PageIndex(biddingQuery)
+        const { page, limit, skip } = PageIndex(biddingQuery);
 
         const biddings = await biddingCollection.aggregate([
             {
@@ -47,21 +47,26 @@ export async function GetBiddings(app: FastifyInstance) {
         ]).toArray();
 
         if (biddings.length === 0) {
-            throw new Error("Bidding not found");
+            return reply.status(404).send({ error: "Bidding not found" });
         };
 
-        const totalBidding = biddings.length;
+        const totalBidding = await biddingCollection.countDocuments(biddingFilter);
 
-        const totalPages = Math.ceil(totalBidding / limit)
+        const totalPages = Math.ceil(totalBidding / limit);
 
         return reply.send({ biddings, page, limit, totalBidding, totalPages });
     });
 
-    // Gráfico 1: Situação da licitação x Quantidade
     app.get("/grafico1", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
         const biddingCollection = db.collection("licitacao");
 
         const situacaoData = await biddingCollection.aggregate([
+            {
+                $match: biddingFilter,
+            },
             {
                 $group: {
                     _id: "$situacaoLicitacao",
@@ -69,18 +74,27 @@ export async function GetBiddings(app: FastifyInstance) {
                 }
             },
             {
-                $match: { _id: { $ne: null } } // Adicionado para garantir que o _id não seja nulo
+                $match: { _id: { $ne: null } }
             }
         ]).toArray();
+
+        if (situacaoData.length === 0) {
+            return reply.status(404).send({ error: "No data found" });
+        }
 
         return reply.send(situacaoData);
     });
 
-    // Gráfico 2: Modalidade de compra x Porcentagem
     app.get("/grafico2", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
         const biddingCollection = db.collection("licitacao");
 
         const modalidadeData = await biddingCollection.aggregate([
+            {
+                $match: biddingFilter,
+            },
             {
                 $group: {
                     _id: "$modalidadeCompra.descricao",
@@ -109,17 +123,22 @@ export async function GetBiddings(app: FastifyInstance) {
             }
         ]).toArray();
 
+        if (modalidadeData.length === 0) {
+            return reply.status(404).send({ error: "No data found" });
+        }
+
         return reply.send(modalidadeData);
     });
 
-
-    // Gráfico 3: Órgão x Quantidade de licitações
     app.get("/grafico3", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
         const biddingCollection = db.collection("licitacao");
 
         const orgaoData = await biddingCollection.aggregate([
             {
-                $match: { "unidadeOrgao.descricao": { $ne: null } } // Garantir que o campo não seja nulo
+                $match: { ...biddingFilter, "unidadeOrgao.descricao": { $ne: null } }
             },
             {
                 $group: {
@@ -129,17 +148,22 @@ export async function GetBiddings(app: FastifyInstance) {
             }
         ]).toArray();
 
+        if (orgaoData.length === 0) {
+            return reply.status(404).send({ error: "No data found" });
+        }
+
         return reply.send(orgaoData);
     });
 
-
-   // Gráfico 4: Ano x Quantidade de licitações
     app.get("/grafico4", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
         const biddingCollection = db.collection("licitacao");
 
         const anoData = await biddingCollection.aggregate([
             {
-                $match: { "anoCompra": { $ne: null } } // Garantir que o campo não seja nulo
+                $match: { ...biddingFilter, "anoCompra": { $ne: null } }
             },
             {
                 $group: {
@@ -148,6 +172,10 @@ export async function GetBiddings(app: FastifyInstance) {
                 }
             }
         ]).toArray();
+
+        if (anoData.length === 0) {
+            return reply.status(404).send({ error: "No data found" });
+        }
 
         return reply.send(anoData);
     });
