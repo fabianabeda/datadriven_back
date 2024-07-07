@@ -285,4 +285,118 @@ export async function GetBiddings(app: FastifyInstance) {
         }
     });
 
+    app.get("/total-participantes", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
+        const biddingCollection = db.collection("licitacao");
+
+        const participantesData = await biddingCollection.aggregate([
+            {
+                $match: { ...biddingFilter, "anoCompra": { $ne: null } }
+            },
+            {
+                $group: {
+                    _id: "$anoCompra",
+                    totalParticipantes: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { _id: 1 }
+            }
+        ]).toArray();
+
+        if (participantesData.length === 0) {
+            return reply.status(404).send({ error: "No data found" });
+        }
+
+        return reply.send(participantesData);
+    });
+
+    app.get("/tipo-fornecedores", async (req: FastifyRequest, reply: FastifyReply) => {
+        try {
+            const biddingCollection = db.collection("fornecedor");
+    
+            const countByType = await biddingCollection.aggregate([
+                {
+                    $group: {
+                        _id: "$porteFornecedorNome",
+                        count: { $sum: 1 }
+                    }
+                }
+            ]).toArray();
+    
+            return reply.send(countByType);
+        } catch (error) {
+            console.error("Erro ao contar fornecedores por tipo:", error);
+            return reply.status(500).send({ error: "Erro interno do servidor" });
+        }
+    });
+
+    app.get("/top-empresas", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+    
+        try {
+            const biddingCollection = db.collection("licitacao");
+    
+            const topEmpresas = await biddingCollection.aggregate([
+                {
+                    $match: biddingFilter,
+                },
+                {
+                    $lookup: {
+                        from: "item_licitacao",
+                        localField: '_id',
+                        foreignField: 'licitacao',
+                        as: 'biddingItems'
+                    },
+                },
+                {
+                    $unwind: "$biddingItems",
+                },
+                {
+                    $lookup: {
+                        from: "fornecedor",
+                        localField: 'biddingItems.resultado.fornecedor_id',
+                        foreignField: '_id',
+                        as: 'fornecedor'
+                    }
+                },
+                {
+                    $unwind: "$fornecedor"
+                },
+                {
+                    $group: {
+                        _id: "$biddingItems.resultado.fornecedor_id",
+                        nomeEmpresa: { $first: "$fornecedor.nomeRazaoSocialFornecedor" },
+                        count: { $sum: 1 } 
+                    }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                {
+                    $limit: 5
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        nomeEmpresa: 1,
+                        totalLicitacoes: "$count" 
+                    }
+                }
+            ]).toArray();
+    
+            if (topEmpresas.length === 0) {
+                return reply.status(404).send({ error: "No data found" });
+            }
+    
+            return reply.send(topEmpresas);
+        } catch (error) {
+            console.error("Error fetching top companies data:", error);
+            return reply.status(500).send({ error: "Internal server error" });
+        }
+    });
+
 }
