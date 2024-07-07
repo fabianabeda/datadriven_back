@@ -1,5 +1,6 @@
 {
     "dependencies": {
+        "@fastify/cors": "^9.0.1",
         "@types/mongodb": "^4.0.7",
         "dotenv": "^16.4.5",
         "fastify": "^4.28.1",

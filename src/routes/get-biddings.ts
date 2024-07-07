@@ -179,4 +179,110 @@ export async function GetBiddings(app: FastifyInstance) {
 
         return reply.send(anoData);
     });
+
+    app.get("/total-licitacoes", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+
+        const biddingCollection = db.collection("licitacao");
+
+        const totalLicitacoes = await biddingCollection.countDocuments(biddingFilter);
+
+        return reply.send({ totalLicitacoes });
+    });
+
+    app.get("/top-itens-licitados", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+    
+        try {
+            const biddingCollection = db.collection("licitacao");
+    
+            const topItens = await biddingCollection.aggregate([
+                {
+                    $match: biddingFilter,
+                },
+                {
+                    $lookup: {
+                        from: "item_licitacao",
+                        localField: '_id',
+                        foreignField: 'licitacao',
+                        as: 'biddingItems'
+                    },
+                },
+                {
+                    $unwind: "$biddingItems",
+                },
+                {
+                    $group: {
+                        _id: "$biddingItems.descricao",
+                        total: { $sum: "$biddingItems.quantidade" }
+                    }
+                },
+                {
+                    $sort: { total: -1 }
+                },
+                {
+                    $limit: 10
+                }
+            ]).toArray();
+    
+            if (topItens.length === 0) {
+                return reply.status(404).send({ error: "No data found" });
+            }
+    
+            return reply.send(topItens);
+        } catch (error) {
+            console.error("Error fetching top items:", error);
+            return reply.status(500).send({ error: "Internal server error" });
+        }
+    });
+
+    app.get("/valor-total-licitado", async (req: FastifyRequest, reply: FastifyReply) => {
+        const biddingQuery = req.query as BiddingQuery;
+        const biddingFilter = BuildBiddingFilter(biddingQuery);
+    
+        try {
+            const biddingCollection = db.collection("licitacao");
+    
+            const totalValue = await biddingCollection.aggregate([
+                {
+                    $match: biddingFilter,
+                },
+                {
+                    $lookup: {
+                        from: "item_licitacao",
+                        localField: '_id',
+                        foreignField: 'licitacao',
+                        as: 'biddingItems'
+                    },
+                },
+                {
+                    $unwind: "$biddingItems",
+                },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$biddingItems.valor" }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0, 
+                        total: 1 
+                    }
+                }
+            ]).toArray();
+    
+            if (totalValue.length === 0) {
+                return reply.status(404).send({ error: "No data found" });
+            }
+    
+            return reply.send(totalValue[0]);
+        } catch (error) {
+            console.error("Error fetching total value:", error);
+            return reply.status(500).send({ error: "Internal server error" });
+        }
+    });
+
 }

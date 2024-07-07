@@ -1,11 +1,11 @@
+
 export type BiddingQuery = {
     modalidade?: string;
     unidade?: string;
     orgao?: string;
     municipio?: string;
     estado?: string;
-    ano?: number;
-    
+    ano?: string;
     page: string;
     limit: string;
 };
@@ -20,32 +20,31 @@ export type BiddingFilter = {
 };
 
 export function BuildBiddingFilter(query: BiddingQuery): BiddingFilter {
-
     const filter: BiddingFilter = {};
 
     if (query.modalidade) {
-        filter["modalidadeCompra.id"] = Number(query.modalidade)
-    };
+        filter["modalidadeCompra.id"] = Number(query.modalidade);
+    }
 
-    if (query.modalidade) {
-        filter["anoCompra"] = Number(query.ano)
-    };
-    
+    if (query.ano) {
+        filter["anoCompra"] = Number(query.ano);
+    }
+
     if (query.estado) {
-        filter["unidadeOrgao.cidade.uf.nome"] = new RegExp(query.estado, 'i')
-    };
+        filter["unidadeOrgao.cidade.uf.nome"] = new RegExp(query.estado, 'i');
+    }
 
     if (query.municipio) {
-        filter["unidadeOrgao.cidade.nome"] = new RegExp(query.municipio, 'i')
-    };
+        filter["unidadeOrgao.cidade.nome"] = new RegExp(query.municipio, 'i');
+    }
 
     if (query.unidade) {
-        filter["unidadeOrgao.codigo"] = query.unidade
-    };
+        filter["unidadeOrgao.codigo"] = query.unidade;
+    }
 
     if (query.orgao) {
-        filter["unidadeOrgao.orgao.codigo"] = query.orgao
-    };
+        filter["unidadeOrgao.orgao.codigo"] = query.orgao;
+    }
 
     return filter;
 }
